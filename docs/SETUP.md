@@ -11,7 +11,7 @@ Status legend: ✅ exists · ⬜ to create · 🔒 only you can do
 |---|---|
 | Team | Blast Robotics, FRC Team 10989 |
 | Nonprofit | Keystone STEM Alliance |
-| Team site | `10989website` (Astro) → `team10989.org` ✅ |
+| Team site | Vercel project `10989-blast` (Astro) → `team10989.org` ✅ |
 | Workspace domain | `keystonestemai.org` ✅ |
 | Google Groups | "BLAST Robotics Students", "BLAST Robotics Parents" ✅ (need exact emails) |
 | KeySign | `esignapp` (Next.js), production on Vercel + Neon, **no Google auth in prod** ✅ |
@@ -30,36 +30,48 @@ Everything below is created inside accounts you already have.
 
 ## 2. Accounts and credentials
 
-I cannot read your Chrome session or log in as you. I need either a token pasted into a local untracked file, or you run one CLI login. Nothing else.
+Status as of **2026-11-17**; exact values and verification evidence in [STATE.md](./STATE.md).
 
-| # | Account | Create | What I need | Who |
-|---|---|---|---|---|
-| 1 | Neon | reuse existing project, new database | `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | you (2 min) |
-| 2 | Vercel | new project in your personal account | `VERCEL_TOKEN` (account → settings → tokens) | you (2 min) |
-| 3 | Google Cloud | **new project** — KeySign has none to share | `GOOGLE_SA_JSON`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | you (15 min) |
-| 4 | Slack | new app in the team workspace | `SLACK_BOT_TOKEN`, `SLACK_SIGNING_SECRET` | you (10 min) |
-| — | GitHub | existing account, `gh` already authenticated | — | done |
+| # | Account | Status | Note |
+|---|---|---|---|
+| 1 | Neon | ✅ done | Created through the Vercel Neon integration and connected to `launchpad`; `DATABASE_URL` + `DATABASE_URL_UNPOOLED` in `.env.local` and Vercel |
+| 2 | Vercel | ✅ done | Project `launchpad` created and linked; CLI authenticated as `virat2010` |
+| 3 | Google Cloud | 🟡 partial | Project `LaunchPad` and the Web OAuth client exist. **Service account + DWD are Phase 2** |
+| 4 | Slack | ⬜ to create | Phase 4 |
+| — | GitHub | ✅ done | `BLAST-Robotics/launchpad`; push access verified |
 
-**Secrets I generate myself:** `BETTER_AUTH_SECRET`, `KEYSIGN_TOKEN_SECRET`, `KEYSIGN_WEBHOOK_SECRET`, `INTERNAL_SERVICE_SECRET`, `LANCER_SERVICE_SECRET`, calendar feed token.
+**No `VERCEL_TOKEN` is needed.** The CLI is logged in on this machine and `vercel link` is done,
+so `vercel` commands work directly.
 
-**Secrets you paste:** the 7 above. Never into chat, never into the repo — into `launchpad/.env.local` (gitignored) and the Vercel dashboard.
+**Secrets I generate myself:** `BETTER_AUTH_SECRET` (done), `KEYSIGN_TOKEN_SECRET`,
+`KEYSIGN_WEBHOOK_SECRET`, `INTERNAL_SERVICE_SECRET`, `LANCER_SERVICE_SECRET`, calendar feed token.
 
-Total: **3 new accounts, ~30 minutes, no payment methods.**
+**Secrets still to provide:** the Slack bot token + signing secret (Phase 4), and the Google
+service account JSON (Phase 2). Everything for Phase 0 is already in place.
+
+Never put a secret in the repo or in a chat message — `launchpad/.env.local` (gitignored) or the
+Vercel environment variables.
 
 ---
 
 ## 3. Google Cloud project
 
-Only you can do these; the console steps are quick but the DWD screen has no API.
+The OAuth client (Phase 0) is already made. The service account and DWD are Phase 2 and are the
+only console work left.
 
-1. 🔒 Create project `launchpad` under `keystonestemai.org`'s organization.
-2. Enable **Admin SDK API**, **Google Drive API**, **Google Calendar API**.
-3. Create a **service account** `launchpad-bot@<project>.iam.gserviceaccount.com`, download a JSON key. Enable **Domain-wide delegation** on it.
-4. Create an **OAuth client** (Web application):
-   - Authorized JavaScript origin: `https://launchpad.team10989.org` (or the final domain)
-   - Authorized redirect URI: `https://<domain>/api/auth/callback/google`
+1. ✅ Create project `LaunchPad` (done 2026-11-17).
+2. ⬜ **Phase 2** — enable **Admin SDK API**, **Google Drive API**, **Google Calendar API**.
+3. ⬜ **Phase 2** — create service account `launchpad-bot@<project>.iam.gserviceaccount.com`,
+   download a JSON key, enable **Domain-wide delegation**.
+4. ✅ Create the **OAuth client** (Web application) — done:
+   - Authorized JS origins: `http://localhost:3000`, `https://launchpad.team10989.org`
+   - Authorized redirect URIs: `http://localhost:3000/api/auth/callback/google`,
+     `https://launchpad.team10989.org/api/auth/callback/google`
    - Audience: **External**, scopes `openid email profile` only → no verification needed.
-5. 🔒 Workspace Admin console → Security → API controls → Domain-wide delegation → add the service account **client ID** with these scopes:
+   - Publishing status is **Testing**: add every person who needs to sign in as a test user, or
+     publish the app.
+5. ⬜ **Phase 2** — Workspace Admin console → Security → API controls → Domain-wide delegation →
+   add the service account **client ID** with these scopes:
 
 ```
 https://www.googleapis.com/auth/admin.directory.group
@@ -75,7 +87,13 @@ https://www.googleapis.com/auth/calendar
 
 ## 4. Google objects inventory (the one thing I really need from you)
 
-Fill this in exactly; I seed `google_objects` from it and verify each entry against the real API before anything is written.
+Fill this in only if API discovery is blocked. **Status:** this block is a fallback. Once the Phase 2
+service account + DWD exist, the verify script enumerates groups (`admin.directory.groups.list`,
+`members.list`) and Shared Drives (`drives.list`, `files.list` with `supportsAllDrives`) and seeds
+`google_objects` itself — no hand-typed IDs.
+
+Final hostname is **decided**: `launchpad.team10989.org` (308 redirect from
+`launchpad.keystonestemai.org`).
 
 ```
 Students group email:        ____________________________
@@ -123,11 +141,18 @@ No multi-signer/envelope work. No Google auth added to KeySign. KeySign's databa
 
 ## 6. Deployment
 
-1. Create the Vercel project from the monorepo, root `apps/web`.
-2. Env vars: the 7 secrets + generated ones, per environment.
-3. Cron: `GET /api/internal/cron/reconcile` daily.
-4. Domain: attach `launchpad.team10989.org` (or whatever you choose) — DNS at the `team10989.org` registrar.
-5. Migrations: run once in the deploy step; never concurrently.
+Actual state: the Vercel project exists and is linked; build configuration arrives with
+`vercel.json` (see `PHASE-0-PLAN.md` §2). Remaining steps:
+
+1. `vercel.json`: `bunVersion: "1.x"`, `installCommand: bun install`, `buildCommand: bun run build`,
+   `outputDirectory: apps/web/dist`, SPA fallback rewrite. The API is the root `api/[...path].ts`
+   catch-all, so **do not** set a framework preset or a root directory.
+2. Env vars: already set in Vercel for all three environments (see `STATE.md` §3).
+3. Cron: `GET /api/internal/cron/reconcile` daily — **Phase 2**, not yet configured.
+4. Domain: attach `launchpad.team10989.org` to the `launchpad` project, then add a 308 redirect
+   from `launchpad.keystonestemai.org`. DNS for `team10989.org` is on the same Vercel account
+   (project `10989-blast`), so this is a project-level operation.
+5. Migrations: run once from the deploy step with `DATABASE_URL_UNPOOLED`; never concurrently.
 
 ---
 
@@ -143,8 +168,13 @@ No multi-signer/envelope work. No Google auth added to KeySign. KeySign's databa
 
 ---
 
-## 8. What I need to start Phase 0, in order
+## 8. Current blockers
 
-1. `VERCEL_TOKEN` + the Neon database URLs → I scaffold, deploy, and you get a login screen.
-2. The inventory in §4 → I seed and verify Google objects.
-3. Nothing else. Phases 0–1 need no Google, no Slack, no KeySign.
+Nothing is blocked. Neon, Vercel, GitHub, and the Google OAuth client are all done, so Phase 0 is
+pure implementation. See [STATE.md](./STATE.md) §7 for the ordered next actions.
+
+The only future dependencies:
+
+- **Phase 2:** the Google service account JSON key and DWD authorization (console, ~15 min).
+- **Phase 4:** the Slack app and channel IDs, Discord webhook URLs.
+- **Phase 2:** the inventory in §4, if API discovery cannot be used.

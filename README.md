@@ -10,10 +10,13 @@ Nothing is built yet. This repository currently holds the design.
 
 | File | What it covers |
 |---|---|
+| [docs/STATE.md](docs/STATE.md) | What already exists: projects, DB, env vars, verified facts, gotchas, next actions |
+| [docs/PHASE-0-PLAN.md](docs/PHASE-0-PLAN.md) | File-by-file build plan for the current phase, with estimates |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Components, data model, provisioning, waiver pipeline, security posture |
 | [docs/ROADMAP.md](docs/ROADMAP.md) | Phases 0–6, exit criteria, risks |
 | [docs/SETUP.md](docs/SETUP.md) | Accounts, credentials, Google DWD, group/folder inventory, KeySign changes |
 | [docs/DECISIONS.md](docs/DECISIONS.md) | Decision log with rationale and reversals; open questions |
+| [AGENTS.md](AGENTS.md) | Rules and conventions for coding agents working in this repo |
 
 ## Shape of the thing
 
@@ -32,4 +35,6 @@ Email, queues, object storage, websockets, a rebuilt attendance system, a multi-
 
 ## Next step
 
-Phase 0 needs two things: a Vercel token and the Neon database URLs. See [docs/SETUP.md](docs/SETUP.md) §8.
+Phase 0 is unblocked — Neon, Vercel, GitHub and the Google OAuth client are all done, and no
+application code has been written yet. Start with [docs/PHASE-0-PLAN.md](docs/PHASE-0-PLAN.md);
+current infrastructure state is in [docs/STATE.md](docs/STATE.md) §7.
