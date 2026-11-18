@@ -1,0 +1,287 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-18T01:43:22.688Z",
+  "title": "Design System: LaunchPad",
+  "extensions": {
+    "colorMeta": {
+      "ember-red": {
+        "role": "primary",
+        "displayName": "Ember Red",
+        "canonical": "#e60004",
+        "tonalRamp": [
+          "#440000",
+          "#7e0000",
+          "#b20000",
+          "#de0000",
+          "#ff5444",
+          "#ff9786",
+          "#ffcbc1",
+          "#ffebe6"
+        ]
+      },
+      "ember-red-deep": {
+        "role": "primary",
+        "displayName": "Ember Red Deep",
+        "canonical": "#b80003",
+        "tonalRamp": [
+          "#3e0000",
+          "#750000",
+          "#a60000",
+          "#d12c22",
+          "#f26454",
+          "#ff9e8f",
+          "#ffcec5",
+          "#ffece8"
+        ]
+      },
+      "amber": {
+        "role": "secondary",
+        "displayName": "Amber",
+        "canonical": "#fca817",
+        "tonalRamp": [
+          "#2f0600",
+          "#5d1b00",
+          "#873a00",
+          "#ad5f00",
+          "#cf8700",
+          "#e6b372",
+          "#f5d9b8",
+          "#fbf0e2"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ink",
+        "canonical": "#0a0a0a",
+        "tonalRamp": [
+          "#161616",
+          "#333333",
+          "#525252",
+          "#747474",
+          "#989898",
+          "#bebebe",
+          "#dedede",
+          "#f2f2f2"
+        ]
+      },
+      "graphite": {
+        "role": "neutral",
+        "displayName": "Graphite",
+        "canonical": "#55555c",
+        "tonalRamp": [
+          "#161619",
+          "#323238",
+          "#525259",
+          "#74747b",
+          "#97979e",
+          "#bdbdc2",
+          "#dedee0",
+          "#f2f2f3"
+        ]
+      },
+      "hairline": {
+        "role": "neutral",
+        "displayName": "Hairline",
+        "canonical": "#e7e7ea",
+        "tonalRamp": [
+          "#161617",
+          "#333335",
+          "#525255",
+          "#747477",
+          "#98989a",
+          "#bdbdbf",
+          "#dededf",
+          "#f2f2f2"
+        ]
+      },
+      "success": {
+        "role": "status",
+        "displayName": "Success Green",
+        "canonical": "#0f7a4f",
+        "tonalRamp": [
+          "#001f0a",
+          "#00411f",
+          "#00643b",
+          "#26885c",
+          "#5cab82",
+          "#97ccae",
+          "#cae6d5",
+          "#eaf5ee"
+        ]
+      },
+      "warning": {
+        "role": "status",
+        "displayName": "Warning Umber",
+        "canonical": "#8a4f00",
+        "tonalRamp": [
+          "#2a0c00",
+          "#542400",
+          "#7c4200",
+          "#a16423",
+          "#c38b55",
+          "#deb590",
+          "#f0dac6",
+          "#f9f0e8"
+        ]
+      },
+      "danger": {
+        "role": "status",
+        "displayName": "Danger Red",
+        "canonical": "#b42318",
+        "tonalRamp": [
+          "#3b0000",
+          "#6f0000",
+          "#9f0000",
+          "#c93a2c",
+          "#eb6b5b",
+          "#fea293",
+          "#ffd0c7",
+          "#ffece9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Reserved for a large hero headline."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Page and card headings."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Section and step headings."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Paragraphs and form text."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Buttons, field labels and pills."
+      }
+    },
+    "shadows": [
+      {
+        "name": "card",
+        "value": "0 1px 2px rgb(10 10 10 / 0.05), 0 8px 24px -12px rgb(10 10 10 / 0.12)",
+        "purpose": "Resting cards only."
+      }
+    ],
+    "motion": [
+      {
+        "name": "color-fast",
+        "value": "background-color .15s",
+        "purpose": "Hover color changes on buttons. Nothing else moves."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "sm",
+        "value": "640px"
+      },
+      {
+        "name": "lg",
+        "value": "1024px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action on a screen.",
+      "html": "<button class=\"ds-btn-primary\">Continue</button>",
+      "css": ".ds-btn-primary{font-family:'Outfit Variable',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border:0;border-radius:8px;background:#e60004;color:#fff;font-size:14px;font-weight:500;cursor:pointer;transition:background-color .15s}.ds-btn-primary:hover{background:#b80003}.ds-btn-primary:focus-visible{outline:2px solid #0a0a0a;outline-offset:2px}.ds-btn-primary:disabled{opacity:.6;cursor:not-allowed}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "A quieter alternative beside or after the primary action.",
+      "html": "<button class=\"ds-btn-secondary\">Back</button>",
+      "css": ".ds-btn-secondary{font-family:'Outfit Variable',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border:1px solid rgba(10,10,10,.8);border-radius:8px;background:#fff;color:#0a0a0a;font-size:14px;font-weight:500;cursor:pointer;transition:background-color .15s,color .15s}.ds-btn-secondary:hover{background:#0a0a0a;color:#fff}.ds-btn-secondary:focus-visible{outline:2px solid #0a0a0a;outline-offset:2px}"
+    },
+    {
+      "name": "Ghost Button",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Low-emphasis actions such as Sign out.",
+      "html": "<button class=\"ds-btn-ghost\">Sign out</button>",
+      "css": ".ds-btn-ghost{font-family:'Outfit Variable',system-ui,sans-serif;display:inline-flex;align-items:center;justify-content:center;height:40px;padding:0 16px;border:0;border-radius:8px;background:transparent;color:#55555c;font-size:14px;font-weight:500;cursor:pointer}.ds-btn-ghost:hover{background:rgba(231,231,234,.6);color:#0a0a0a}.ds-btn-ghost:focus-visible{outline:2px solid #0a0a0a;outline-offset:2px}"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "44px field with a visible label above.",
+      "html": "<label class=\"ds-field\"><span class=\"ds-field-label\">Email</span><input class=\"ds-input\" type=\"email\" placeholder=\"you@example.com\"></label>",
+      "css": ".ds-field{font-family:'Outfit Variable',system-ui,sans-serif;display:block;width:260px}.ds-field-label{display:block;margin-bottom:6px;font-size:14px;font-weight:500;color:#0a0a0a}.ds-input{box-sizing:border-box;display:block;width:100%;height:44px;padding:0 12px;border:1px solid #c9c9cf;border-radius:8px;background:#fff;color:#0a0a0a;font:inherit;font-size:16px}.ds-input::placeholder{color:#55555c}.ds-input:focus-visible{border-color:#e60004;outline:2px solid #0a0a0a;outline-offset:2px}"
+    },
+    {
+      "name": "Card with fire bar",
+      "kind": "card",
+      "refersTo": "card",
+      "description": "The main card of a screen, with the 4px fire strip on its top edge.",
+      "html": "<div class=\"ds-card\"><span class=\"ds-fire\"></span><h3 class=\"ds-card-title\">Sign in to LaunchPad</h3><p class=\"ds-card-body\">One tap with Google, or use your email.</p></div>",
+      "css": ".ds-card{font-family:'Outfit Variable',system-ui,sans-serif;position:relative;overflow:hidden;width:280px;padding:24px;border:1px solid #e7e7ea;border-radius:16px;background:#fff;color:#0a0a0a;box-shadow:0 1px 2px rgba(10,10,10,.05),0 8px 24px -12px rgba(10,10,10,.12)}.ds-fire{position:absolute;left:0;right:0;top:0;height:4px;background-image:linear-gradient(90deg,#e60004 0%,#f03a0c 28%,#f26a0a 52%,#fca817 76%,#ffd21f 100%)}.ds-card-title{font-family:'Unbounded Variable','Outfit Variable',system-ui,sans-serif;margin:8px 0 6px;font-size:18px;font-weight:700;letter-spacing:-.01em}.ds-card-body{margin:0;font-size:16px;color:#55555c}"
+    },
+    {
+      "name": "Status Pill",
+      "kind": "chip",
+      "refersTo": "pill-accent",
+      "description": "Small full-round status tag; always paired with words.",
+      "html": "<span class=\"ds-pill\">Pending approval</span>",
+      "css": ".ds-pill{font-family:'Outfit Variable',system-ui,sans-serif;display:inline-flex;align-items:center;padding:2px 10px;border:1px solid rgba(230,0,4,.25);border-radius:9999px;background:#fff1f0;color:#b80003;font-size:12px;font-weight:500}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Launch Sequence",
+    "overview": "LaunchPad is a countdown the student can follow: one clear step, then the next, ending in \"you're in\". Everything is built so a sixth grader on a phone can read it at arm's length and know what to do. Surfaces are white, edges are black, and the only loud thing is the team's own fire gradient, used as a short strip or a single emphasised word. Controls are large, flat and plain.",
+    "keyCharacteristics": [
+      "White paper, near-black ink, hairline grey borders. Light theme only.",
+      "One accent red for the primary action; amber is a fill, never text on white.",
+      "Wide heavy display face (Unbounded) over a friendly body face (Outfit), both self-hosted.",
+      "Big targets: inputs 44px, buttons 40–48px.",
+      "The fire gradient is a brand moment, not a texture."
+    ],
+    "rules": [
+      {
+        "name": "The One Press Rule",
+        "body": "Ember Red marks the single primary action on a screen. If two things are red buttons, one of them is wrong.",
+        "section": "colors"
+      },
+      {
+        "name": "The Fill, Not Text Rule",
+        "body": "Amber and the yellow end of the gradient never carry small text on white; they are fills, or they sit on black.",
+        "section": "colors"
+      },
+      {
+        "name": "The Display Is for Headings Rule",
+        "body": "Unbounded is applied to h1–h3 and .font-display only; forms, tables and paragraphs stay in Outfit.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat Until Held Rule",
+        "body": "Controls have no shadow. Only cards carry the one ambient shadow.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do keep red for the one primary action per screen and white text on it (4.9:1).",
+      "Do use the fire gradient as a 4px strip or a single emphasised word.",
+      "Do use the team's real wordmark and shuttle images from public/brand/.",
+      "Do keep controls at least 44px tall on phones and show the 2px ink focus ring everywhere.",
+      "Do put amber on black or use it as a fill, and keep status colors paired with words, not color alone."
+    ],
+    "donts": [
+      "Don't redraw, recolor or stretch the BLAST wordmark, the shuttle or the isometric mark.",
+      "Don't set small text in amber or yellow on white.",
+      "Don't put gradient text on paragraphs, buttons or labels.",
+      "Don't add a dark theme without reworking the LaunchPad mark, whose outlines are black.",
+      "Don't introduce a third accent hue; vermilion, orange and yellow live only inside the gradient."
+    ]
+  }
+}

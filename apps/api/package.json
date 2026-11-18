@@ -1,0 +1,20 @@
+{
+  "name": "@launchpad/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/app.ts"
+  },
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@launchpad/db": "workspace:*",
+    "@launchpad/shared": "workspace:*",
+    "better-auth": "^1.3.0",
+    "elysia": "^1.3.0",
+    "zod": "^4.0.0"
+  }
+}

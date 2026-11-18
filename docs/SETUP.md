@@ -178,3 +178,18 @@ The only future dependencies:
 - **Phase 2:** the Google service account JSON key and DWD authorization (console, ~15 min).
 - **Phase 4:** the Slack app and channel IDs, Discord webhook URLs.
 - **Phase 2:** the inventory in §4, if API discovery cannot be used.
+
+## Connecting Google Groups (read-only membership check)
+
+LaunchPad can tell a student whether they are in the students Google Group, and a parent whether they are in the parents group. It is read-only and fails soft: until this is set up the dashboard says "The group check isn't connected yet".
+
+1. In the **LaunchPad** Google Cloud project (not KeySign's), create a service account and download a JSON key.
+2. Enable the **Admin SDK API** for that project.
+3. In the Workspace Admin console (Security → API controls → Domain-wide delegation) add the service account's client ID with this one scope:
+   `https://www.googleapis.com/auth/admin.directory.group.member.readonly`
+4. Set two env vars (Vercel, all environments, and `.env.local`; never commit them):
+   - `GOOGLE_SERVICE_ACCOUNT_JSON`: the key file contents as one line.
+   - `GOOGLE_WORKSPACE_ADMIN_EMAIL`: a Workspace admin address the service account impersonates.
+5. Tell LaunchPad which groups to check by inserting two rows into `google_objects` (kind `group`, `key` = `students` / `parents`, `email` = the group address). Group addresses are never in source.
+
+The check looks up the signed-in account's own email, so a student who signed up with a personal Gmail that is not in the group will show "Not in the group yet". Results are cached for five minutes. Nothing in the logs contains an email address or the key.

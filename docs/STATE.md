@@ -1,6 +1,6 @@
 # LaunchPad — Current State
 
-**As of:** 2026-11-17 · **Phase:** 0 (Bootstrap) · **Code written:** none
+**As of:** 2026-11-17 · **Phase:** 0 (Bootstrap) · **Code written:** scaffold complete locally, uncommitted (steps 1–5, 8–9 of the plan)
 
 This file is the handoff. If you are an agent picking this up, read it before touching anything.
 It records what **already exists** — plans describe what should exist, this records what does.
@@ -34,7 +34,8 @@ Update it whenever infrastructure changes; never let it drift.
 | Pooled URL | `DATABASE_URL` — `postgresql://neondb_owner:…@…-pooler.…neon.tech/neondb` |
 | Direct URL | `DATABASE_URL_UNPOOLED` — required for migrations |
 | Connectivity | **verified** 2026-11-17: `select current_database()` → `neondb` |
-| `public` schema | **empty** — zero application tables |
+| `public` schema | migrations 0000 + 0001 applied (second `db:migrate` is a no-op). `user` also has `graduation_year`, `requested_role` (check: student/parent/mentor) and `profile_completed_at` |
+| Roster | **29** entries imported into season 2027 (first name, last name, grade only — no phone, email or parent data). Source CSV lives outside the repo; re-run with `bun run db:import-roster <csv>` (idempotent, counts only, never touches claim state). 10 sheet rows skipped (blank name or `Roster?` not TRUE) |
 | `neon_auth` schema | 9 tables, created by the Neon Auth integration. **Ignored by LaunchPad.** Do not read, write, or drop it |
 
 Also present from the integration: `POSTGRES_*`, `PG*`, `NEON_PROJECT_ID`, `NEON_AUTH_BASE_URL`,
@@ -101,17 +102,20 @@ Adding a hostname means adding both an origin and a redirect URI in the console.
 - Vercel CLI works for: `project create`, `link`, `env add/ls/pull`, `integration resource connect`.
 - Vercel MCP returns `403 forbidden` for scope `virat2010s-projects` — **use the CLI**.
 
+- Email + password sign-up works locally (D-021): sign-up → `/api/me` (`profileComplete:false`, `roles:["pending"]`) → `GET /api/onboarding/matches` (max 3, no claimant) → `POST /api/onboarding` (student claim → `roles:["student"]`; repeat → 409). Account linking is off, so a password account and a Google account with the same email do not merge (`account_not_linked`).
+
 ## 7. Next actions, in order
 
-1. Scaffold the monorepo exactly as listed in [PHASE-0-PLAN.md](./PHASE-0-PLAN.md) §2–6.
-2. Generate and apply the first Drizzle migration to Neon with `DATABASE_URL_UNPOOLED`.
-3. Seed the current season row.
-4. `bun dev:api` → `/api/health` returns `{ ok: true, db: "up" }`; `/api/me` returns 401.
-5. `bun dev:web` → Google sign-in against `http://localhost:3000` succeeds.
-6. Commit, push, let Vercel build, then attach `https://launchpad.team10989.org`.
-7. Re-verify Google sign-in on the production hostname, tick the Phase 0 exit criterion.
-8. Add the CI workflow and the migration drift check.
-9. Write `docs/PHASE-0-RUNBOOK.md` and tick ROADMAP Phase 0.
+Done and verified locally 2026-11-17: monorepo scaffold, first migration applied to Neon
+(second run is a no-op), season 2027 seeded, `typecheck` / `lint` / `test` / `db:check` green,
+`/api/health` → `{ok:true,db:"up"}`, `/api/me` → 401 envelope. Fixed: Better Auth adapter needs
+singular model names mapped to our plural table exports (`SCHEMA_MISMATCH`).
+
+1. `bun run dev` → Google sign-in against `http://localhost:5173` (needs a listed OAuth test user); confirm one user/account/session and `/dashboard`.
+2. Commit, push, let Vercel build; confirm `/api/health` on the preview.
+3. Attach `https://launchpad.team10989.org`; re-verify Google sign-in there.
+4. Confirm CI is green on GitHub.
+5. Write `docs/PHASE-0-RUNBOOK.md`; tick ROADMAP Phase 0 only after production verification.
 
 ## 8. Gotchas that will waste an hour if forgotten
 
@@ -129,3 +133,16 @@ Adding a hostname means adding both an origin and a redirect URI in the console.
 - **Don't enable a Vercel "framework preset".** The project is a static build plus root `api/`
   functions; `vercel.json` supplies `outputDirectory` and the SPA rewrite.
 - **`neon_auth` exists.** Any tool that lists tables will show 9 extra ones. They are not ours.
+
+## Waivers, dues and e-sign (added 2026-11-18)
+
+- `roster_entries.dues_status` (paid | unpaid | unknown) comes from the coordination sheet via `bun run db:import-roster <csv>`. Import: 29 updated, dues paid 14 / unpaid 15.
+- `waiver_signatures.source` (keysign | self_reported); unique triple (document, user, source). Migrations 0002 and 0003, both idempotent.
+- One active `Team waiver 2027` document seeded with `bun run db:seed-waiver`.
+- `WAIVERS_ASSUMED_SIGNED=true` (D-022). `KEYSIGN_SIGNING_URL` and `KEYSIGN_WEBHOOK_SECRET` are unset: the `/waivers` page says e-sign is not connected and the webhook answers 401. Contract in `docs/KEYSIGN-INTEGRATION.md`.
+- Pages: `/waivers`, `/waivers/done`, `/core-values` (values list is EMPTY: the assignment document was not found in Drive; fill `apps/web/src/content/core-values.ts`).
+- Not built: Google Groups membership check (needs the service account + DWD, Phase 2).
+
+## Google Groups membership check (built, not connected)
+
+`GET /api/groups/status` and the dashboard "Team Google Group" row exist and are tested with a fake client. They report `not_connected` until `GOOGLE_SERVICE_ACCOUNT_JSON` and `GOOGLE_WORKSPACE_ADMIN_EMAIL` are set and `google_objects` has `students` / `parents` group rows. See SETUP.md, "Connecting Google Groups". Not exercised against real Google. No admin-wide mismatch report yet.

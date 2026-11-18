@@ -111,6 +111,23 @@ Short form ADRs. Each entry is a decision that constrains the build; "why" is th
 **Why:** Slack's 3-second acknowledgement limit rules out doing real work in the request. Discord only needs mirroring, so a webhook URL is enough — no bot, no OAuth, no intents.
 **Rejected:** Slack socket mode, Discord bot for v1.
 
+### D-021 — Email + password sign-up, no verification, no email ever sent
+**Status:** accepted (amends D-003 and D-004; AGENTS non-negotiable 1 reworded)
+**Why:** not everyone has, or wants to use, a Google account (some parents and students). Registration is not a security boundary here (D-004): access comes from claiming a roster entry or linking a child (D-005), and a mentor stays `pending` until an admin approves. So an unverified address does not widen what an account can do. Verification would require sending email, which D-003 rules out.
+**Mechanism:** Better Auth `emailAndPassword` with `requireEmailVerification: false`, minimum 8 characters, auto sign-in, and a 5-per-minute rate limit on `/sign-in/email` and `/sign-up/email`.
+**Consequences:**
+- `account.accountLinking` is **disabled**. An unverified password account must never merge with a Google sign-in on the same address, or anyone who pre-registered a victim's email could take over the victim's later Google account. A user who signed up with a password and then tries Google gets `account_not_linked`; the UI must say so in plain words.
+- No password reset by email. Reset is an admin action.
+- Roles are still never self-granted: the post-sign-in step only creates a claim (student), a guardian link (parent), or leaves the account `pending` (mentor, or no match).
+**Rejected:** email verification, magic links, SMS codes (all need an outbound channel).
+
+### D-022 — Waivers are assumed signed for everyone on the roster, for now
+**Status:** accepted, temporary (2026-11-18)
+**Why:** the e-sign integration is not connected yet and the team confirmed everyone on the roster has already filled out the waiver. Blocking the dashboard on a missing integration helps nobody.
+**How:** `WAIVERS_ASSUMED_SIGNED=true` (default). A person with a claimed roster entry, or a guardian of one, and no signature row is shown as **"Signed (assumed for now)"**. No fake signature row is ever written, and a real signature always wins over the assumption. Dues come from the team coordination sheet (`roster_entries.dues_status`: paid | unpaid | unknown), not from an assumption.
+**Turn it off when:** `KEYSIGN_SIGNING_URL` and `KEYSIGN_WEBHOOK_SECRET` are set and real signatures are flowing, or earlier if a mentor wants missing waivers to show as "Not signed yet". Set `WAIVERS_ASSUMED_SIGNED=false`; nothing else changes.
+**Consequence:** the status is honest about being an assumption, and removing it needs no migration.
+
 ---
 
 ## Open decisions (need input)

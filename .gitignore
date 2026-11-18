@@ -1,8 +1,11 @@
+.env
+.env.*
+!.env.example
 .vercel
-.env*
 node_modules/
 dist/
-coverage/
 *.tsbuildinfo
+coverage/
 .DS_Store
-Thumbs.db
+data/
+*.roster.csv
