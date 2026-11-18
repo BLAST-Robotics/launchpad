@@ -4,7 +4,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { type FormEvent, useId, useMemo, useRef, useState } from "react";
 import { Button, Card, classes, Spinner } from "../components/ui";
 import { ApiError, meQueryOptions } from "../lib/api";
-import { fetchRosterMatches, submitOnboarding } from "../lib/onboarding";
+import { fetchRosterMatches, skipOnboarding, submitOnboarding } from "../lib/onboarding";
 import { PendingScreen } from "./root";
 
 type Step = "role" | "details" | "match" | "done";
@@ -158,6 +158,18 @@ export function WelcomePage() {
     }
   }
 
+  async function handleSkip() {
+    setError(null);
+    setBusy(true);
+    try {
+      await skipOnboarding();
+      await goToDashboard();
+    } catch {
+      setError("Could not skip right now. Try again, or pick the option that describes you.");
+      setBusy(false);
+    }
+  }
+
   async function goToDashboard() {
     await queryClient.invalidateQueries({ queryKey: ["me"] });
     await navigate({ to: "/dashboard", replace: true });
@@ -187,6 +199,15 @@ export function WelcomePage() {
             </li>
           ))}
         </ol>
+      ) : null}
+
+      {me?.roles.includes("admin") && step !== "done" ? (
+        <p className="mt-4 flex flex-wrap items-center gap-x-3 text-sm text-muted">
+          You are an admin, so you can skip this for now.
+          <Button size="sm" variant="ghost" onClick={handleSkip} disabled={busy}>
+            Skip for now
+          </Button>
+        </p>
       ) : null}
 
       <Card fire className="mt-6 pt-8">

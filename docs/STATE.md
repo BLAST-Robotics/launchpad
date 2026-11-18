@@ -146,3 +146,11 @@ singular model names mapped to our plural table exports (`SCHEMA_MISMATCH`).
 ## Google Groups membership check (built, not connected)
 
 `GET /api/groups/status` and the dashboard "Team Google Group" row exist and are tested with a fake client. They report `not_connected` until `GOOGLE_SERVICE_ACCOUNT_JSON` and `GOOGLE_WORKSPACE_ADMIN_EMAIL` are set and `google_objects` has `students` / `parents` group rows. See SETUP.md, "Connecting Google Groups". Not exercised against real Google. No admin-wide mismatch report yet.
+
+## Core values videos, Groups and KeySign (latest)
+
+- **Core values videos:** `/core-values` (student upload, straight to the Team Shared Drive) and `/admin/core-values` (review). Table `core_value_submissions` (migration 0004). Needs the service-account key and a registered folder: see docs/SETUP.md, "Core values videos". Until then the page shows the backup Google Form.
+- **Groups check:** works with or without domain-wide delegation; with `GOOGLE_WORKSPACE_ADMIN_EMAIL` unset it acts as the service account itself (docs/SETUP.md, option A).
+- **`google_objects`:** the two group rows (`group` / `students`, `group` / `parents`) are registered. Use `bun run db:set-google-object -- <kind> <key> <externalId> [email] [label]` for the rest.
+- **KeySign:** the document ID is stored on the seeded waiver row; `KEYSIGN_SIGNING_URL` (the public signing link) is still needed.
+

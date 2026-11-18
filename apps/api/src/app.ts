@@ -3,6 +3,7 @@ import { auth } from "./auth";
 import { HttpError } from "./http-error";
 import { logError, logEvent } from "./observability";
 import { adminRoutes } from "./routes/admin";
+import { coreValuesRoutes } from "./routes/core-values";
 import { groupRoutes } from "./routes/groups";
 import { healthRoutes } from "./routes/health";
 import { meRoutes } from "./routes/me";
@@ -72,6 +73,7 @@ export function createApp() {
       .use(adminRoutes)
       .use(waiverRoutes)
       .use(groupRoutes)
+      .use(coreValuesRoutes)
   );
 }
 

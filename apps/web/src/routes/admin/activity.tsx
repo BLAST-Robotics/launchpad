@@ -26,6 +26,8 @@ const LABELS: Record<string, string> = {
   "roster.updated": "Roster entry edited",
   "roster.unclaimed": "Roster entry unclaimed",
   "roster.imported": "Roster imported",
+  "core_value.submitted": "Core values video sent",
+  "core_value.reviewed": "Core values video reviewed",
 };
 
 const label = (action: string) => LABELS[action] ?? action;

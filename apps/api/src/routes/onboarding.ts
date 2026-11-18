@@ -4,8 +4,10 @@ import {
   matchesQuerySchema,
   matchesResponseSchema,
   matchRoster,
+  mergeRoles,
   onboardingRequestSchema,
   onboardingResponseSchema,
+  type Role,
   UNAUTHENTICATED,
 } from "@launchpad/shared";
 import { and, eq, isNull } from "drizzle-orm";
@@ -81,6 +83,53 @@ export const onboardingRoutes = new Elysia({ name: "onboarding" })
       matches: matches.map(({ score: _score, ...match }) => match),
     });
   })
+  .post("/api/onboarding/skip", async ({ request, set }) => {
+    const session = await auth.api.getSession({ headers: request.headers });
+    if (!session) {
+      set.status = 401;
+      return UNAUTHENTICATED;
+    }
+    const userId = session.user.id;
+
+    // Server-enforced: only an active admin may skip the welcome questions (D-023).
+    const result = await db.transaction(async (tx) => {
+      const [me] = await tx
+        .select({
+          roles: schema.users.roles,
+          status: schema.users.status,
+          done: schema.users.profileCompletedAt,
+        })
+        .from(schema.users)
+        .where(eq(schema.users.id, userId))
+        .for("update");
+      if (me?.status !== "active" || !(me.roles as Role[]).includes("admin")) {
+        return "forbidden" as const;
+      }
+      if (me.done !== null) return "already" as const;
+      await tx
+        .update(schema.users)
+        .set({ profileCompletedAt: new Date() })
+        .where(eq(schema.users.id, userId));
+      await writeAudit(tx, {
+        actorUserId: userId,
+        action: "member.onboarding_skipped",
+        entity: "user",
+        entityId: userId,
+      });
+      return "ok" as const;
+    });
+
+    if (result === "forbidden") {
+      set.status = 403;
+      return { error: { code: "FORBIDDEN", message: "Only admins can skip this step." } };
+    }
+    if (result === "already") {
+      set.status = 409;
+      return { error: { code: "ALREADY_ONBOARDED", message: CONFLICT_MESSAGES.ALREADY_ONBOARDED } };
+    }
+    logEvent("onboarding.skipped", { userId });
+    return onboardingResponseSchema.parse({ ok: true, outcome: "pending" });
+  })
   .post("/api/onboarding", async ({ request, body, set }) => {
     const session = await auth.api.getSession({ headers: request.headers });
     if (!session) {
@@ -105,14 +154,16 @@ export const onboardingRoutes = new Elysia({ name: "onboarding" })
     try {
       const outcome = await db.transaction(async (tx) => {
         const [me] = await tx
-          .select({ done: schema.users.profileCompletedAt })
+          .select({ done: schema.users.profileCompletedAt, existingRoles: schema.users.roles })
           .from(schema.users)
           .where(eq(schema.users.id, userId))
           .for("update");
         if (!me || me.done !== null) throw new Conflict("ALREADY_ONBOARDED");
 
         let result: "claimed" | "linked" | "pending" = "pending";
-        let roles: ("pending" | "student" | "parent")[] = ["pending"];
+        // Merge, never replace: an admin can also be a student or a parent (D-023).
+        const existingRoles = me.existingRoles as Role[];
+        let roles: Role[] = existingRoles.length > 0 ? [...existingRoles] : ["pending"];
         let rosterEntryId: string | null = null;
 
         if (input.rosterEntryId && (input.role === "student" || input.role === "parent")) {
@@ -140,7 +191,7 @@ export const onboardingRoutes = new Elysia({ name: "onboarding" })
               )
               .returning({ id: schema.rosterEntries.id });
             if (claimed.length === 0) throw new Conflict("ALREADY_CLAIMED");
-            roles = ["student"];
+            roles = mergeRoles(existingRoles, ["student"]);
             rosterEntryId = entry.id;
             result = "claimed";
             await writeAudit(tx, {
@@ -155,7 +206,7 @@ export const onboardingRoutes = new Elysia({ name: "onboarding" })
               .insert(schema.guardianLinks)
               .values({ userId, rosterEntryId: entry.id, relationship: "parent" })
               .onConflictDoNothing();
-            roles = ["parent"];
+            roles = mergeRoles(existingRoles, ["parent"]);
             result = "linked";
             await writeAudit(tx, {
               actorUserId: userId,

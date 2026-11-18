@@ -28,3 +28,8 @@ export function submitOnboarding(body: OnboardingRequest): Promise<OnboardingRes
     body: JSON.stringify(body),
   });
 }
+
+/** Admin-only (enforced by the API): finish the welcome step without picking a role. */
+export function skipOnboarding(): Promise<OnboardingResponse> {
+  return apiFetch("/api/onboarding/skip", onboardingResponseSchema, { method: "POST" });
+}

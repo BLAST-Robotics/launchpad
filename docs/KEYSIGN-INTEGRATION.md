@@ -58,3 +58,9 @@ logs IDs only.
 - Waiver status is derived on every read (`waiverStatus()` in `packages/shared`), never stored.
   One signature by the student or by any linked guardian covers the student's waiver.
 - Self-reports write an `audit_log` row (`waiver.self_reported`) so an admin can verify them.
+
+## Status: what is and is not connected
+
+- The seeded "Team waiver 2027" row (`waiver_documents`) now has its KeySign document ID in `keysign_document_id`. It was set as data with a one-off update, so no document ID is in source.
+- **Still needed:** `KEYSIGN_SIGNING_URL`. The KeySign **admin** page for a document is not the signing link: it needs an admin login and cannot be embedded for signers. Get the document's public signing (share) link from KeySign and set it as `KEYSIGN_SIGNING_URL`, together with `KEYSIGN_WEBHOOK_SECRET`. Until then `/waivers` says e-sign is not connected.
+

@@ -6,6 +6,9 @@ import {
   AUDIT_DIFF_FIELDS,
   adminAuditQuerySchema,
   adminAuditResponseSchema,
+  adminCoreValuePatchSchema,
+  adminCoreValuesQuerySchema,
+  adminCoreValuesResponseSchema,
   adminMemberDetailSchema,
   adminMemberPatchSchema,
   adminMembersQuerySchema,
@@ -23,6 +26,7 @@ import {
   parseRosterCsv,
   type Role,
   RosterCsvError,
+  removeRole,
   revokeSessionsResponseSchema,
   UNAUTHENTICATED,
 } from "@launchpad/shared";
@@ -625,10 +629,17 @@ export const adminRoutes = new Elysia({ name: "admin", prefix: "/api/admin" })
         .update(schema.rosterEntries)
         .set({ claimedByUserId: null, status: "unclaimed" })
         .where(eq(schema.rosterEntries.id, id));
-      // The person loses the access the claim gave them and can claim again (D-005).
+      // The person loses the access the claim gave them and can claim again (D-005). Only the
+      // `student` role goes: an admin or parent keeps theirs (D-023).
+      const [claimantRow] = await tx
+        .select({ roles: schema.users.roles })
+        .from(schema.users)
+        .where(eq(schema.users.id, claimant))
+        .for("update");
+      const nextRoles = removeRole((claimantRow?.roles ?? []) as Role[], "student");
       await tx
         .update(schema.users)
-        .set({ rosterEntryId: null, roles: ["pending"] })
+        .set({ rosterEntryId: null, roles: nextRoles })
         .where(eq(schema.users.id, claimant));
 
       await writeAudit(tx, {
@@ -637,7 +648,7 @@ export const adminRoutes = new Elysia({ name: "admin", prefix: "/api/admin" })
         entity: "roster_entry",
         entityId: id,
         before: { claimed: true },
-        after: { claimed: false, roles: ["pending"] },
+        after: { claimed: false, roles: nextRoles },
       });
     });
 
@@ -714,6 +725,84 @@ export const adminRoutes = new Elysia({ name: "admin", prefix: "/api/admin" })
   })
 
   /* ----- audit ----- */
+  /* ----- core values videos ----- */
+  .get("/core-values", async ({ query }) => {
+    const q = parse(adminCoreValuesQuerySchema, query);
+    const where = q.status ? eq(schema.coreValueSubmissions.status, q.status) : undefined;
+
+    const [total] = await db.select({ n: count() }).from(schema.coreValueSubmissions).where(where);
+    const rows = await db
+      .select({
+        id: schema.coreValueSubmissions.id,
+        coreValue: schema.coreValueSubmissions.coreValue,
+        status: schema.coreValueSubmissions.status,
+        sizeBytes: schema.coreValueSubmissions.sizeBytes,
+        durationMs: schema.coreValueSubmissions.durationMs,
+        createdAt: schema.coreValueSubmissions.createdAt,
+        driveFileId: schema.coreValueSubmissions.driveFileId,
+        mimeType: schema.coreValueSubmissions.mimeType,
+        studentName: schema.users.name,
+      })
+      .from(schema.coreValueSubmissions)
+      .innerJoin(schema.users, eq(schema.users.id, schema.coreValueSubmissions.userId))
+      .where(where)
+      .orderBy(desc(schema.coreValueSubmissions.createdAt))
+      .limit(q.limit)
+      .offset((q.page - 1) * q.limit);
+
+    return adminCoreValuesResponseSchema.parse({
+      items: rows.map((r) => ({
+        id: r.id,
+        coreValue: r.coreValue,
+        status: r.status,
+        sizeBytes: r.sizeBytes,
+        durationMs: r.durationMs,
+        createdAt: iso(r.createdAt),
+        driveFileId: r.driveFileId,
+        mimeType: r.mimeType,
+        studentName: r.studentName,
+      })),
+      total: total?.n ?? 0,
+      page: q.page,
+      limit: q.limit,
+    });
+  })
+
+  .patch("/core-values/:id", async ({ request, params, body }) => {
+    const actor = actorOf(request);
+    const id = parse(uuid, params.id);
+    const patch = parse(adminCoreValuePatchSchema, body);
+
+    await db.transaction(async (tx) => {
+      const [current] = await tx
+        .select({ status: schema.coreValueSubmissions.status })
+        .from(schema.coreValueSubmissions)
+        .where(eq(schema.coreValueSubmissions.id, id))
+        .limit(1);
+      if (!current) throw new HttpError(404, "NOT_FOUND", "No such submission.");
+
+      await tx
+        .update(schema.coreValueSubmissions)
+        .set({ status: patch.status })
+        .where(eq(schema.coreValueSubmissions.id, id));
+      await writeAudit(tx, {
+        actorUserId: actor,
+        action: "core_value.reviewed",
+        entity: "core_value_submission",
+        entityId: id,
+        before: { status: current.status },
+        after: { status: patch.status },
+      });
+    });
+
+    logEvent("admin.core_value_reviewed", {
+      actorId: actor,
+      submissionId: id,
+      status: patch.status,
+    });
+    return { ok: true as const };
+  })
+
   .get("/audit", async ({ query }) => {
     const q = parse(adminAuditQuerySchema, query);
     const where = q.action ? eq(schema.auditLog.action, q.action) : undefined;

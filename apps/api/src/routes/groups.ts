@@ -11,6 +11,7 @@ import { Elysia } from "elysia";
 import { auth } from "../auth";
 import { env } from "../env";
 import { computeGroupStatuses, createGoogleGroupsClient } from "../lib/groups";
+import { logEvent } from "../observability";
 
 const client = createGoogleGroupsClient(
   env.GOOGLE_SERVICE_ACCOUNT_JSON,
@@ -41,7 +42,11 @@ export const groupRoutes = new Elysia({ name: "groups" }).get(
       return UNAUTHENTICATED;
     }
     const groups = await computeGroupStatuses(
-      { client, lookupGroupEmail },
+      {
+        client,
+        lookupGroupEmail,
+        onError: (reason) => logEvent("groups.check_failed", { reason }),
+      },
       { email: user.email, roles: user.roles as Role[], status: user.status as MemberStatus },
     );
     return groupsStatusResponseSchema.parse({ groups });

@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { ApiError, meQueryOptions } from "./lib/api";
 import { AdminActivityPage } from "./routes/admin/activity";
+import { AdminCoreValuesPage } from "./routes/admin/core-values";
 import { AdminLayout } from "./routes/admin/layout";
 import { AdminMembersPage } from "./routes/admin/members";
 import { AdminOverviewPage } from "./routes/admin/overview";
@@ -132,6 +133,12 @@ const adminRosterRoute = createRoute({
   }),
 });
 
+const adminCoreValuesRoute = createRoute({
+  getParentRoute: () => adminRoute,
+  path: "/core-values",
+  component: AdminCoreValuesPage,
+});
+
 const adminActivityRoute = createRoute({
   getParentRoute: () => adminRoute,
   path: "/activity",
@@ -159,6 +166,7 @@ const routeTree = rootRoute.addChildren([
       adminOverviewRoute,
       adminMembersRoute,
       adminRosterRoute,
+      adminCoreValuesRoute,
       adminActivityRoute,
     ]),
   ]),

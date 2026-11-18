@@ -1,7 +1,10 @@
 import { db, schema } from "@launchpad/db";
+import { adminGrantFor, isListedEmail, type Role } from "@launchpad/shared";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { eq } from "drizzle-orm";
+import { APIError, createAuthMiddleware } from "better-auth/api";
+import { and, eq } from "drizzle-orm";
+import { writeAudit } from "./audit";
 import { env, isProduction } from "./env";
 import { logEvent } from "./observability";
 
@@ -10,6 +13,57 @@ const preferredOrigins = [
   // Vite dev server. The browser's Origin is 5173 even though /api is proxied to 3000.
   env.NODE_ENV === "development" ? "http://localhost:5173" : undefined,
 ].filter((origin): origin is string => Boolean(origin));
+
+/**
+ * D-023: listed admin emails earn `admin` only through a verified Google identity. Idempotent,
+ * keeps every other role, and writes one audit row only when something actually changed.
+ */
+export async function grantAdminIfListed(userId: string): Promise<boolean> {
+  if (env.ADMIN_EMAILS.length === 0) return false;
+  return db.transaction(async (tx) => {
+    const [user] = await tx
+      .select({
+        email: schema.users.email,
+        emailVerified: schema.users.emailVerified,
+        roles: schema.users.roles,
+      })
+      .from(schema.users)
+      .where(eq(schema.users.id, userId))
+      .for("update");
+    if (!user) return false;
+    const [google] = await tx
+      .select({ id: schema.accounts.id })
+      .from(schema.accounts)
+      .where(and(eq(schema.accounts.userId, userId), eq(schema.accounts.providerId, "google")))
+      .limit(1);
+    const next = adminGrantFor({
+      hasGoogleAccount: !!google,
+      emailVerified: user.emailVerified,
+      email: user.email,
+      roles: user.roles as Role[],
+      adminEmails: env.ADMIN_EMAILS,
+    });
+    if (!next) return false;
+    await tx.update(schema.users).set({ roles: next }).where(eq(schema.users.id, userId));
+    await writeAudit(tx, {
+      actorUserId: null,
+      action: "member.admin_granted",
+      entity: "user",
+      entityId: userId,
+      before: { roles: user.roles },
+      after: { roles: next },
+    });
+    return true;
+  });
+}
+
+/** Password sign-up for an admin address is refused so nobody can squat it (D-023). */
+export function assertSignUpAllowed(path: string, email: unknown): void {
+  if (path !== "/sign-up/email" || typeof email !== "string") return;
+  if (isListedEmail(email, env.ADMIN_EMAILS)) {
+    throw new APIError("BAD_REQUEST", { message: "This address signs in with Google." });
+  }
+}
 
 /**
  * Better Auth with Google OAuth, external audience, basic scopes only (D-004).
@@ -58,6 +112,12 @@ export const auth = betterAuth({
     accountLinking: {
       enabled: false,
     },
+  },
+
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      assertSignUpAllowed(ctx.path, (ctx.body as { email?: unknown } | undefined)?.email);
+    }),
   },
 
   rateLimit: {
@@ -140,6 +200,11 @@ export const auth = betterAuth({
     session: {
       create: {
         after: async (session) => {
+          try {
+            await grantAdminIfListed(session.userId);
+          } catch {
+            logEvent("auth.admin_grant_failed", { userId: session.userId });
+          }
           try {
             await db
               .update(schema.users)

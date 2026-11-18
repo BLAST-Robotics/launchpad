@@ -1,11 +1,14 @@
 import {
   type AdminAuditQuery,
+  type AdminCoreValuePatch,
+  type AdminCoreValuesQuery,
   type AdminMemberPatch,
   type AdminMembersQuery,
   type AdminRosterCreate,
   type AdminRosterPatch,
   type AdminRosterQuery,
   adminAuditResponseSchema,
+  adminCoreValuesResponseSchema,
   adminMemberDetailSchema,
   adminMembersResponseSchema,
   adminOverviewSchema,
@@ -97,3 +100,14 @@ export const unclaimRosterEntry = (id: string) =>
 
 export const importRoster = (csv: string) =>
   apiFetch("/api/admin/roster/import", adminRosterImportResponseSchema, json("POST", { csv }));
+
+export const coreValuesQuery = (query: Partial<AdminCoreValuesQuery>) =>
+  queryOptions({
+    queryKey: [...ADMIN_KEY, "core-values", query],
+    queryFn: () =>
+      apiFetch(`/api/admin/core-values${qs(query as Params)}`, adminCoreValuesResponseSchema),
+    placeholderData: (previous) => previous,
+  });
+
+export const reviewCoreValue = (id: string, patch: AdminCoreValuePatch) =>
+  apiFetch(`/api/admin/core-values/${id}`, okSchema, json("PATCH", patch));

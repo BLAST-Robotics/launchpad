@@ -1,3 +1,4 @@
+import { parseEmailList } from "@launchpad/shared";
 import { z } from "zod";
 
 /**
@@ -37,6 +38,13 @@ const envSchema = z.object({
     .string()
     .optional()
     .transform((value) => value?.trim() || undefined),
+
+  // Comma-separated emails that become admins when they sign in with Google (D-023). Never in
+  // source. Password sign-up is blocked for these addresses (no email verification, D-021).
+  ADMIN_EMAILS: z
+    .string()
+    .optional()
+    .transform((value) => parseEmailList(value)),
 
   // Optional. Absent means error reporting is a no-op.
   SENTRY_DSN: z.string().url().optional(),

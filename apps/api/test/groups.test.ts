@@ -1,5 +1,7 @@
 import { describe, expect, test } from "bun:test";
+import { generateKeyPairSync } from "node:crypto";
 import { createApp } from "../src/app";
+import { GoogleApiError } from "../src/lib/google-auth";
 import {
   computeGroupStatuses,
   createGoogleGroupsClient,
@@ -108,6 +110,62 @@ describe("createGoogleGroupsClient", () => {
     expect(createGoogleGroupsClient("{}", undefined)).toBeNull();
     expect(createGoogleGroupsClient("not json", "admin@example.test")).toBeNull();
     expect(createGoogleGroupsClient('{"a":1}', "admin@example.test")).toBeNull();
+  });
+});
+
+describe("acting as the service account vs impersonating an admin", () => {
+  const { privateKey } = generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    privateKeyEncoding: { type: "pkcs8", format: "pem" },
+    publicKeyEncoding: { type: "spki", format: "pem" },
+  });
+  const key = JSON.stringify({ client_email: "bot@example.test", private_key: privateKey });
+
+  /** A fake Google: the token endpoint records the JWT claims; hasMember answers `answer`. */
+  function fakeGoogle(answer: Response) {
+    const claims: Array<Record<string, unknown>> = [];
+    const impl = (async (url: string | URL | Request, init?: RequestInit) => {
+      if (String(url).includes("/token") || String(url).includes("oauth2")) {
+        const assertion = new URLSearchParams(String(init?.body)).get("assertion") ?? "";
+        claims.push(JSON.parse(Buffer.from(assertion.split(".")[1] ?? "", "base64url").toString()));
+        return Response.json({ access_token: "t", expires_in: 3600 });
+      }
+      return answer.clone();
+    }) as unknown as typeof fetch;
+    return { impl, claims };
+  }
+
+  test("no admin email: acts as the service account (no sub claim)", async () => {
+    const google = fakeGoogle(Response.json({ isMember: true }));
+    const client = createGoogleGroupsClient(key, undefined, google.impl);
+    expect(client).not.toBeNull();
+    expect(await client?.isMember("g@example.test", "m@example.test")).toBe(true);
+    expect(google.claims[0]?.iss).toBe("bot@example.test");
+    expect(google.claims[0]).not.toHaveProperty("sub");
+  });
+
+  test("admin email set: impersonates that admin (sub claim)", async () => {
+    const google = fakeGoogle(Response.json({ isMember: false }));
+    const client = createGoogleGroupsClient(key, "admin@example.test", google.impl);
+    expect(await client?.isMember("g@example.test", "m@example.test")).toBe(false);
+    expect(google.claims[0]?.sub).toBe("admin@example.test");
+  });
+
+  test("a 403 from Google becomes unknown and is reported as forbidden", async () => {
+    const google = fakeGoogle(new Response("no", { status: 403 }));
+    const client = createGoogleGroupsClient(key, undefined, google.impl);
+    const reasons: string[] = [];
+    const out = await computeGroupStatuses(
+      { client, lookupGroupEmail: lookup, cache: fresh(), onError: (r) => reasons.push(r) },
+      student,
+    );
+    expect(out[0]?.state).toBe("unknown");
+    expect(reasons).toEqual(["forbidden"]);
+  });
+
+  test("GoogleApiError carries only a status", () => {
+    const error = new GoogleApiError("hasMember", 403);
+    expect(error.message).toBe("hasMember failed (403)");
   });
 });
 

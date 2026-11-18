@@ -177,3 +177,55 @@ export function desiredGroups(input: DesiredGroupsInput): DesiredGroupKey[] {
 
   return [...groups].sort();
 }
+
+/**
+ * Add roles to a person's existing ones without dropping any (an admin can also be a parent
+ * and a student). `pending` is dropped as soon as a real role exists.
+ */
+export function mergeRoles(existing: readonly Role[], add: readonly Role[]): Role[] {
+  const merged = [...new Set<Role>([...existing, ...add])];
+  const real = merged.filter((role) => role !== "pending");
+  return real.length > 0 ? real : ["pending"];
+}
+
+/** Remove one role (e.g. `student` when a claim is undone); `pending` only if nothing is left. */
+export function removeRole(existing: readonly Role[], role: Role): Role[] {
+  const rest = [...new Set(existing)].filter((r) => r !== role);
+  return rest.length > 0 ? rest : ["pending"];
+}
+
+/** Parse a comma-separated email allowlist: trimmed, lowercased, empties dropped. */
+export function parseEmailList(value: string | undefined | null): string[] {
+  return [
+    ...new Set(
+      (value ?? "")
+        .split(",")
+        .map((item) => item.trim().toLowerCase())
+        .filter((item) => item.length > 0),
+    ),
+  ];
+}
+
+export function isListedEmail(email: string | null | undefined, list: readonly string[]): boolean {
+  return !!email && list.includes(email.trim().toLowerCase());
+}
+
+export interface AdminGrantInput {
+  /** True only when the person signed in with Google (a verified identity). */
+  hasGoogleAccount: boolean;
+  emailVerified: boolean;
+  email: string;
+  roles: readonly Role[];
+  adminEmails: readonly string[];
+}
+
+/**
+ * The roles to store after a sign-in, or null when nothing should change. Password sign-up has
+ * no email verification (D-021), so only a verified Google identity can ever earn `admin` this way.
+ */
+export function adminGrantFor(input: AdminGrantInput): Role[] | null {
+  if (!input.hasGoogleAccount || !input.emailVerified) return null;
+  if (!isListedEmail(input.email, input.adminEmails)) return null;
+  if (input.roles.includes("admin")) return null;
+  return mergeRoles(input.roles, ["admin"]);
+}

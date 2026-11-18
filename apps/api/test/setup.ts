@@ -32,3 +32,6 @@ process.env.BETTER_AUTH_URL ??= "http://localhost:3000";
 process.env.GOOGLE_CLIENT_ID ??= "test-client-id";
 process.env.GOOGLE_CLIENT_SECRET ??= "test-client-secret";
 process.env.DATABASE_URL ??= "postgresql://test:test@127.0.0.1:5432/launchpad_test";
+
+// Fake allowlist for tests, always: a real list from .env.local must never reach a test.
+process.env.ADMIN_EMAILS = "Fake-Admin@example.test";

@@ -128,6 +128,14 @@ Short form ADRs. Each entry is a decision that constrains the build; "why" is th
 **Turn it off when:** `KEYSIGN_SIGNING_URL` and `KEYSIGN_WEBHOOK_SECRET` are set and real signatures are flowing, or earlier if a mentor wants missing waivers to show as "Not signed yet". Set `WAIVERS_ASSUMED_SIGNED=false`; nothing else changes.
 **Consequence:** the status is honest about being an assumption, and removing it needs no migration.
 
+### D-023 — Admins come from an env email allowlist, and only through Google
+**Status:** accepted
+**Why:** the first admins have to come from somewhere, and a command-line grant per person is slow. Password sign-up has no email verification (D-021), so granting `admin` to whoever registers a listed address would let anyone claim it. A verified Google identity is the only sign-in that proves the address is theirs.
+**Mechanism:** `ADMIN_EMAILS` (comma-separated, env only, never in source). On a Google sign-in whose email is verified and listed, `admin` is added to the person's roles (idempotent, one `member.admin_granted` audit row). Password sign-up for a listed address is refused ("This address signs in with Google.") so nobody can squat it, since account linking is off.
+**Roles merge:** an admin can also be a parent or a student. Claiming adds `student`, linking a child adds `parent`, an admin unclaim removes only `student`, and `pending` appears only when no real role is left. Admins may skip the welcome questions.
+**Rejected:** granting by email on any sign-up, a hardcoded list, making admins a separate account type.
+**Consequence:** a person on the list who already has a password account with that address will not get admin until they sign in with Google, and the two accounts do not merge (an admin must clear the old one).
+
 ---
 
 ## Open decisions (need input)

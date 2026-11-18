@@ -1,6 +1,7 @@
 export * from "./admin";
 export * from "./attendance";
 export * from "./contracts";
+export * from "./core-values";
 export * from "./csv";
 export * from "./groups";
 export * from "./roles";

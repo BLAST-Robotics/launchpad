@@ -1,4 +1,3 @@
-import { createSign } from "node:crypto";
 import {
   expectedGroupKeys,
   type GroupKey,
@@ -6,12 +5,14 @@ import {
   type MemberStatus,
   type Role,
 } from "@launchpad/shared";
+import { classifyGoogleError, createTokenSource, GoogleApiError } from "./google-auth";
 
 /**
  * Read-only Google Groups membership check.
  *
- * Needs a service account with domain-wide delegation (docs/SETUP.md). Until the two env
- * vars are set the client is `null` and every check reports `not_connected`. Group emails
+ * Needs a service account key (docs/SETUP.md): either assign the account an admin role, or
+ * set an admin to impersonate via domain-wide delegation. Without the key the client is `null`
+ * and every check reports `not_connected`. Group emails
  * come from `google_objects` through `lookupGroupEmail`, never from source (D-019).
  * Nothing in here logs an email address or the key.
  */
@@ -21,77 +22,20 @@ export interface GroupsClient {
 }
 
 const SCOPE = "https://www.googleapis.com/auth/admin.directory.group.member.readonly";
-const DEFAULT_TOKEN_URI = "https://oauth2.googleapis.com/token";
 
-interface ServiceAccountKey {
-  client_email: string;
-  private_key: string;
-  token_uri?: string;
-}
-
-function b64url(input: string | Buffer): string {
-  return Buffer.from(input).toString("base64url");
-}
-
-function parseKey(raw: string): ServiceAccountKey | null {
-  try {
-    const parsed = JSON.parse(raw) as Partial<ServiceAccountKey>;
-    if (typeof parsed.client_email === "string" && typeof parsed.private_key === "string") {
-      return parsed as ServiceAccountKey;
-    }
-  } catch {
-    // Unreadable JSON is treated as "not connected", never echoed.
-  }
-  return null;
-}
-
-/** Signed-JWT + fetch against Google, no SDK. Returns null when not configured. */
+/**
+ * Signed-JWT + fetch against Google, no SDK. Returns null when the key is not configured.
+ * With `adminEmail` set the client impersonates that admin (domain-wide delegation); without
+ * it the client acts as the service account itself, which works once a Workspace admin has
+ * assigned the account an admin role (docs/SETUP.md, option A).
+ */
 export function createGoogleGroupsClient(
   keyJson: string | undefined,
   adminEmail: string | undefined,
   fetchImpl: typeof fetch = fetch,
 ): GroupsClient | null {
-  if (!keyJson || !adminEmail) return null;
-  const key = parseKey(keyJson);
-  if (!key) return null;
-
-  let token: { value: string; expiresAt: number } | null = null;
-
-  async function accessToken(): Promise<string> {
-    const now = Math.floor(Date.now() / 1000);
-    if (token && token.expiresAt - 60 > now) return token.value;
-
-    const aud = key?.token_uri ?? DEFAULT_TOKEN_URI;
-    const header = b64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
-    const claims = b64url(
-      JSON.stringify({
-        iss: key?.client_email,
-        sub: adminEmail,
-        scope: SCOPE,
-        aud,
-        iat: now,
-        exp: now + 3600,
-      }),
-    );
-    const signature = createSign("RSA-SHA256")
-      .update(`${header}.${claims}`)
-      .sign(key?.private_key ?? "");
-    const assertion = `${header}.${claims}.${b64url(signature)}`;
-
-    const response = await fetchImpl(aud, {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
-        assertion,
-      }),
-    });
-    if (!response.ok) throw new Error(`token request failed (${response.status})`);
-    const body = (await response.json()) as { access_token?: string; expires_in?: number };
-    if (!body.access_token) throw new Error("token response had no access_token");
-    token = { value: body.access_token, expiresAt: now + (body.expires_in ?? 3600) };
-    return token.value;
-  }
+  const accessToken = createTokenSource({ keyJson, scope: SCOPE, subject: adminEmail, fetchImpl });
+  if (!accessToken) return null;
 
   return {
     async isMember(groupEmail, memberEmail) {
@@ -101,7 +45,7 @@ export function createGoogleGroupsClient(
       const response = await fetchImpl(url, {
         headers: { Authorization: `Bearer ${await accessToken()}` },
       });
-      if (!response.ok) throw new Error(`hasMember failed (${response.status})`);
+      if (!response.ok) throw new GoogleApiError("hasMember", response.status);
       const body = (await response.json()) as { isMember?: boolean };
       return body.isMember === true;
     },
@@ -114,6 +58,8 @@ export interface GroupCheckDeps {
   client: GroupsClient | null;
   /** The email for a logical group key, from `google_objects`; null when no row exists. */
   lookupGroupEmail(key: GroupKey): Promise<string | null>;
+  /** Called with a safe reason (never an address) when a Google call fails, for logging. */
+  onError?: (reason: "forbidden" | "unauthorized" | "not_found" | "other") => void;
   now?: () => number;
   cache?: Map<string, { state: GroupState; expiresAt: number }>;
 }
@@ -152,7 +98,8 @@ export async function computeGroupStatuses(
         const state: GroupState = isMember ? "member" : "not_member";
         cache.set(cacheKey, { state, expiresAt: now() + CACHE_MS });
         return { key, state };
-      } catch {
+      } catch (error) {
+        deps.onError?.(classifyGoogleError(error));
         return { key, state: "unknown" as const };
       }
     }),
