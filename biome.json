@@ -14,7 +14,8 @@
       "!**/*.tsbuildinfo",
       "!.vercel",
       "!.claude",
-      "!**/.impeccable"
+      "!**/.impeccable",
+      "!api/_bundle"
     ]
   },
   "formatter": {
