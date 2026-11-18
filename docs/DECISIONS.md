@@ -136,6 +136,19 @@ Short form ADRs. Each entry is a decision that constrains the build; "why" is th
 **Rejected:** granting by email on any sign-up, a hardcoded list, making admins a separate account type.
 **Consequence:** a person on the list who already has a password account with that address will not get admin until they sign in with Google, and the two accounts do not merge (an admin must clear the old one).
 
+### D-024 — The Vercel function imports a prebuilt bundle, at `api/index.ts`
+**Status:** accepted (2026-11-18)
+**Why:** two separate Vercel failures, both reproduced on previews:
+- A function that imported `apps/api/src/app.ts` directly resolved the workspace packages (`@launchpad/*`) as symlinks, which Vercel does not trace into the function. Every request died on `ResolveMessage`.
+- A file named `api/[...path].ts` produced the route `^/api/([^/]+)$` — one segment only. `/api/me` reached the function, but `/api/groups/status` and every other nested path 404'd at the platform, never reaching Elysia.
+
+**Mechanism:**
+- `bun run build:api` emits `api/_bundle/app.js` (gitignored); `api/index.ts` imports it and is the only Vercel function.
+- `vercel.json` rewrites `/api/:path*` → `/api/index` **before** the SPA fallback. Vercel preserves the original URL, so Elysia still matches `/api/admin/overview`.
+- Optional peer dependencies that Better Auth imports dynamically must be present in the bundle (`@opentelemetry/api`). A bare `import("@opentelemetry/api")` left in the function crashed the Bun runtime with `error: bun is unable to write files: ReadOnlyFileSystem` — never read that message as a real write, it was a module-resolution failure inside the read-only function FS.
+
+**Consequence:** never rename the entry back to `api/[...path].ts`, and never point it at `apps/api/src` directly. After changing the build, check `.vercel/output/config.json` for `^/api(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))?$`.
+
 ---
 
 ## Open decisions (need input)
