@@ -122,7 +122,7 @@ Done and verified 2026-11-18: the API is deployed and green in production on
 
 1. Sign in once with a Google account in `ADMIN_EMAILS` on the production domain — that is what creates the first admin (D-023).
 2. Browser pass of the newer pages: `/waivers`, `/core-values`, `/admin/*`, dashboard status cards, onboarding skip.
-3. Human-side credentials: publish the Google OAuth app, set `KEYSIGN_WEBHOOK_SECRET`, register the core-values Drive folder, grant the service account the Groups readonly role.
+3. Human-side credentials: publish the Google OAuth app, set `KEYSIGN_WEBHOOK_SECRET`, register the core-values Drive folder, grant the service account the Groups readonly role. `bun run db:check-google` reports which of these is still missing (run it locally — Vercel secrets cannot be pulled). Steps in `docs/SETUP.md`.
 4. Merge `feat/portal-foundation` → `main` once the browser pass is done, so production builds from `main`.
 5. Confirm CI is green on GitHub; write `docs/PHASE-0-RUNBOOK.md`; tick ROADMAP Phase 0 only for what the production checks above actually demonstrate.
 
