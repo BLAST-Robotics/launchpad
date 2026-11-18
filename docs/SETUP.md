@@ -178,3 +178,56 @@ The only future dependencies:
 - **Phase 2:** the Google service account JSON key and DWD authorization (console, ~15 min).
 - **Phase 4:** the Slack app and channel IDs, Discord webhook URLs.
 - **Phase 2:** the inventory in §4, if API discovery cannot be used.
+
+## Connecting Google Groups (read-only membership check)
+
+LaunchPad can tell a student whether they are in the students Google Group, and a parent whether they are in the parents group. It is read-only and fails soft: until this is set up the dashboard says "The group check isn't connected yet".
+
+Both options start the same way:
+
+1. In the **LaunchPad** Google Cloud project (not KeySign's), create a service account and download a JSON key. Some Workspace organizations block key creation (`iam.disableServiceAccountKeyCreation`); a super admin has to relax that organization policy for the project first.
+2. Enable the **Admin SDK API** for that project.
+3. Set `GOOGLE_SERVICE_ACCOUNT_JSON` (the key file contents as one line) in Vercel (all environments) and `.env.local`. Never commit it, and delete the downloaded file.
+4. Register the two groups in `google_objects` (kind `group`, `key` = `students` / `parents`, `email` = the group address):
+   `bun run db:set-google-object -- group students <students-group-id-or-email> <students-group-email>`
+   Group addresses are never in source.
+
+Then pick **one** way to give the service account permission to read group members. Both need a Workspace **super admin** to do the one-time step in the Admin console; an ordinary admin cannot.
+
+**Option A (recommended): assign the service account an admin role. No delegation.**
+- Admin console, Account, Admin roles: create (or reuse) a role whose only privilege is read access to Groups.
+- On that role choose Assign service accounts, and add the service account's email.
+- Leave `GOOGLE_WORKSPACE_ADMIN_EMAIL` **unset**. LaunchPad then acts as the service account itself.
+
+**Option B: domain-wide delegation.**
+- Admin console, Security, Access and data control, API controls, Manage domain-wide delegation: add the service account's numeric client ID with this one scope:
+  `https://www.googleapis.com/auth/admin.directory.group.member.readonly`
+- Set `GOOGLE_WORKSPACE_ADMIN_EMAIL` to a Workspace admin address of the domain that owns the groups. LaunchPad then impersonates that admin. This value comes from the environment only and is never in source or docs.
+
+If Google answers "not authorized" (403), the dashboard shows the group status as unknown and the log records the reason `forbidden` (never an address). That usually means the role or delegation step above has not been done yet, or was done in a different Workspace than the one that owns the groups.
+
+The check looks up the signed-in account's own email, so a student who signed up with a personal Gmail that is not in the group will show "Not in the group yet". Results are cached for five minutes. Nothing in the logs contains an email address or the key.
+
+## Core values videos
+
+Each student picks one FIRST core value and uploads a video of themselves talking about it, at least one minute. The video goes from the student's browser **straight to the Team Shared Drive**; LaunchPad stores only the Drive file ID and a status, and no video ever passes through (or is stored by) the app. Videos are private: students see only their own status, and only admins get an "Open in Drive" link.
+
+What you need to do, once:
+
+1. In the Team Shared Drive, create (or choose) a folder for the videos, for example "Core values videos".
+2. Add the service account (its email is the `client_email` in the key file) to the **Shared Drive** as a member with **Content manager** (or Contributor) access. This works with no domain-wide delegation. `GOOGLE_SERVICE_ACCOUNT_JSON` must be set (see above); the Drive API must be enabled for the project.
+3. Register the folder so the app knows where to put videos (the folder ID is the last part of its Drive URL):
+   `bun run db:set-google-object -- folder core-values <folderId> "" "Core values videos"`
+   If no folder is registered, LaunchPad falls back to the Shared Drive itself (`shared_drive` / `drives.team`).
+4. Until a folder or drive is registered, `/core-values` shows the assignment's backup Google Form instead of the uploader. The backup form link lives in `apps/web/src/content/core-values.ts`.
+
+Video size: a **360p** phone recording is plenty and keeps files small, about **15 to 40 MB for 1 to 3 minutes**. The server accepts up to 1.5 GB as a safety cap only. The six values and their wording are in `apps/web/src/content/core-values.ts`; they are FIRST's public core values, so confirm them against the assignment document.
+
+## Admin accounts by email
+
+Set `ADMIN_EMAILS` (Vercel, all environments, plus `.env.local`) to a comma-separated list, for example `first-admin@example.test,second-admin@example.test`. The first time each person signs in **with Google** (a verified address), they get the `admin` role and one audit row. They can also be a parent or a student at the same time.
+
+- Password sign-up for a listed address is refused; they must use Google.
+- If a listed person already has a password account, clear it first (an admin deletes that user), then they sign in with Google. The two do not merge.
+- `bun run db:make-admin -- <email>` still works for anyone not on the list.
+- See D-023 in `docs/DECISIONS.md`.

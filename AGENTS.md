@@ -49,8 +49,10 @@ different build tool, package manager, or directory layout.
 These come from explicit product decisions. Changing one requires a `DECISIONS.md` entry, not a
 code review comment.
 
-1. **No email, ever.** No Resend, no SMTP, no magic links, no invite emails, no verification
-   emails. Identity is Google OAuth. If a flow seems to need email, redesign the flow.
+1. **No outbound email, ever.** No Resend, no SMTP, no magic links, no invite emails, no
+   verification emails. Identity is Google OAuth **or** email + password sign-up (D-021:
+   unverified, and the account gets no access until a roster claim or admin action). If a flow
+   seems to need email, redesign the flow.
 2. **No queue or scheduler infrastructure.** Inline post-response work, plus one daily cron.
    Do not add Inngest, QStash, Trigger.dev, BullMQ, or a worker process.
 3. **No object storage.** No S3/R2/Blob for documents. PDFs live in the Team Shared Drive and are

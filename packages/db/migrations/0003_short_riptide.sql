@@ -1,0 +1,2 @@
+DROP INDEX "waiver_signatures_document_user_unique";--> statement-breakpoint
+CREATE UNIQUE INDEX "waiver_signatures_document_user_source_unique" ON "waiver_signatures" USING btree ("waiver_document_id","user_id","source");

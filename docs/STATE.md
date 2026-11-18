@@ -1,6 +1,6 @@
 # LaunchPad — Current State
 
-**As of:** 2026-11-17 · **Phase:** 0 (Bootstrap) · **Code written:** none
+**As of:** 2026-11-18 · **Phase:** 0 (Bootstrap), deployed · **Code:** `feat/portal-foundation` @ `43b9452`, live in production
 
 This file is the handoff. If you are an agent picking this up, read it before touching anything.
 It records what **already exists** — plans describe what should exist, this records what does.
@@ -12,16 +12,19 @@ Update it whenever infrastructure changes; never let it drift.
 
 | Thing | Value |
 |---|---|
-| GitHub repo | `BLAST-Robotics/launchpad` (public), branch `main` |
+| GitHub repo | `BLAST-Robotics/launchpad` (public); product code on `feat/portal-foundation`, `main` is docs-only |
 | Local clone | `C:\coding-project\launchpad` |
 | Remote | `origin` → `https://github.com/BLAST-Robotics/launchpad.git` |
 | Push access | verified — GitHub account `vrobot-2` can push to the org repo |
 | Git identity | `virat2010 <59180983+vrobot-2@users.noreply.github.com>` |
 | Vercel project | `launchpad` — `prj_EYUwV7DIrQnmlTki4YjUGjuG1DNM` |
 | Vercel scope | `virat2010s-projects` — `team_68n9usmYC2Kr5JzLldEKPFUx` (Hobby, personal) |
+| Git connection | **connected** 2026-11-18 → pushes build previews automatically; a push to `main` would build production |
 | Local link | `.vercel/project.json` (gitignored) |
-| Framework setting | none / "Other" — configured later by `vercel.json` |
-| Domains attached | **none yet** — no `launchpad.team10989.org` |
+| Framework setting | none / "Other" — `vercel.json` supplies build + rewrites |
+| Function | `api/index.ts` → `api/_bundle/app.js`, built by `bun run build:api` (D-024) |
+| Production domain | **live**: `https://launchpad.team10989.org` (public, no Vercel Authentication) |
+| Preview protection | Vercel Authentication — `*.vercel.app` URLs need `vercel curl` |
 
 ## 2. Database
 
@@ -34,7 +37,9 @@ Update it whenever infrastructure changes; never let it drift.
 | Pooled URL | `DATABASE_URL` — `postgresql://neondb_owner:…@…-pooler.…neon.tech/neondb` |
 | Direct URL | `DATABASE_URL_UNPOOLED` — required for migrations |
 | Connectivity | **verified** 2026-11-17: `select current_database()` → `neondb` |
-| `public` schema | **empty** — zero application tables |
+| `public` schema | **19 tables**, migrations 0000–0004 applied (verified 2026-11-18; second `db:migrate` is a no-op). `user` also has `graduation_year`, `requested_role`, `profile_completed_at`, `roles[]`, `status`, `roster_entry_id` |
+| Roster | **29** entries imported into season 2027, **28 unclaimed**; 1 real user; 0 sessions; 1 waiver document; 0 signatures. Source CSV lives outside the repo; re-run with `bun run db:import-roster <csv>` (idempotent, counts only, never touches claim state) |
+| Shared with dev | one Neon database for dev, preview and production — be careful with test writes |
 | `neon_auth` schema | 9 tables, created by the Neon Auth integration. **Ignored by LaunchPad.** Do not read, write, or drop it |
 
 Also present from the integration: `POSTGRES_*`, `PG*`, `NEON_PROJECT_ID`, `NEON_AUTH_BASE_URL`,
@@ -64,6 +69,10 @@ Regenerable: the same four names are stored in Vercel for every environment, so 
 
 Neon vars are managed by the integration and must not be edited by hand.
 
+Also present: `GOOGLE_SERVICE_ACCOUNT_JSON`, `GOOGLE_WORKSPACE_ADMIN_EMAIL`, `ADMIN_EMAILS`,
+`WAIVERS_ASSUMED_SIGNED`, `KEYSIGN_SIGNING_URL` (stored sensitive, unreadable after saving).
+**Missing:** `KEYSIGN_WEBHOOK_SECRET`.
+
 ## 4. Google
 
 | Thing | Status |
@@ -75,7 +84,7 @@ Neon vars are managed by the integration and must not be edited by hand.
 | Scopes | `openid`, `email`, `profile` only — non-sensitive, no verification |
 | Audience / publishing | **External**, publishing status **Testing**; only listed test users can sign in |
 | Credential validity | **verified** via `oauth2.googleapis.com/token` with a bogus code → `invalid_grant: Malformed auth code` (proves client ID + secret + redirect URI are all correct) |
-| Service account + DWD | **not created** — needed in Phase 2, not Phase 0 |
+| Service account + DWD | key created and stored in `GOOGLE_SERVICE_ACCOUNT_JSON` (`launchpad@lauchpad-515005.iam.gserviceaccount.com`). DWD **not authorized**; Groups readonly admin role not assigned yet, so Groups/Drive calls report `not_connected` |
 | Workspace domain | `keystonestemai.org`; super admin = team Gmail account |
 
 OAuth redirect path is fixed: `/api/auth/callback/google` (Better Auth default base path `/api/auth`).
@@ -95,23 +104,27 @@ Adding a hostname means adding both an origin and a redirect URI in the console.
 ## 6. Verified facts (don't re-litigate without new evidence)
 
 - Neon pooled + unpooled URLs connect and authenticate.
-- `public` schema contains zero tables.
-- Org repo accepts pushes from `vrobot-2`.
+- Migrations 0000–0004 applied; `public` has 19 tables; `db:check` clean.
+- Org repo accepts pushes from `vrobot-2`; Vercel auto-builds a preview from a push to `feat/portal-foundation` (verified 2026-11-18, deployment built commit `43b9452`).
 - Google OAuth client credentials and the localhost redirect URI are accepted by Google.
-- Vercel CLI works for: `project create`, `link`, `env add/ls/pull`, `integration resource connect`.
+- **Production works** (`https://launchpad.team10989.org`, commit `43b9452`): `/api/health` → `{ok:true,db:"up"}`, `/api/me`, `/api/groups/status`, `/api/onboarding/matches`, `/api/admin/overview`, `/api/waivers/signing` and `/api/core-values/mine` → 401 envelope, `/api/auth/ok` → `{ok:true}`, `/api/auth/get-session` → `null`, `/dashboard` and `/login` → SPA HTML 200.
+- Vercel CLI works for: `project create`, `link`, `env add/ls/pull`, `integration resource connect`, `git connect`, `deploy --prebuilt`, `promote`, `logs`, `curl`, `alias ls`.
 - Vercel MCP returns `403 forbidden` for scope `virat2010s-projects` — **use the CLI**.
+
+- Email + password sign-up works locally (D-021): sign-up → `/api/me` (`profileComplete:false`, `roles:["pending"]`) → `GET /api/onboarding/matches` (max 3, no claimant) → `POST /api/onboarding` (student claim → `roles:["student"]`; repeat → 409). Account linking is off, so a password account and a Google account with the same email do not merge (`account_not_linked`).
 
 ## 7. Next actions, in order
 
-1. Scaffold the monorepo exactly as listed in [PHASE-0-PLAN.md](./PHASE-0-PLAN.md) §2–6.
-2. Generate and apply the first Drizzle migration to Neon with `DATABASE_URL_UNPOOLED`.
-3. Seed the current season row.
-4. `bun dev:api` → `/api/health` returns `{ ok: true, db: "up" }`; `/api/me` returns 401.
-5. `bun dev:web` → Google sign-in against `http://localhost:3000` succeeds.
-6. Commit, push, let Vercel build, then attach `https://launchpad.team10989.org`.
-7. Re-verify Google sign-in on the production hostname, tick the Phase 0 exit criterion.
-8. Add the CI workflow and the migration drift check.
-9. Write `docs/PHASE-0-RUNBOOK.md` and tick ROADMAP Phase 0.
+Done and verified 2026-11-18: the API is deployed and green in production on
+`https://launchpad.team10989.org` (commit `43b9452`). `typecheck` / `lint` / `test` (100 pass,
+16 skip) / `db:check` are green. The read-only-FS crash and the nested-path 404s are fixed
+(D-024).
+
+1. Sign in once with a Google account in `ADMIN_EMAILS` on the production domain — that is what creates the first admin (D-023).
+2. Browser pass of the newer pages: `/waivers`, `/core-values`, `/admin/*`, dashboard status cards, onboarding skip.
+3. Human-side credentials: publish the Google OAuth app, set `KEYSIGN_WEBHOOK_SECRET`, register the core-values Drive folder, grant the service account the Groups readonly role. `bun run db:check-google` reports which of these is still missing (run it locally — Vercel secrets cannot be pulled). Steps in `docs/SETUP.md`.
+4. Merge `feat/portal-foundation` → `main` once the browser pass is done, so production builds from `main`.
+5. Confirm CI is green on GitHub; write `docs/PHASE-0-RUNBOOK.md`; tick ROADMAP Phase 0 only for what the production checks above actually demonstrate.
 
 ## 8. Gotchas that will waste an hour if forgotten
 
@@ -129,3 +142,27 @@ Adding a hostname means adding both an origin and a redirect URI in the console.
 - **Don't enable a Vercel "framework preset".** The project is a static build plus root `api/`
   functions; `vercel.json` supplies `outputDirectory` and the SPA rewrite.
 - **`neon_auth` exists.** Any tool that lists tables will show 9 extra ones. They are not ours.
+- **Preview URLs are protected.** Vercel Authentication answers `curl` and `Invoke-WebRequest` with an HTML protection page; use `vercel curl <preview-url><path>` for real HTTP checks. The production domain is not protected.
+- **`vercel logs <url>` takes no `--yes`** (it errors on unknown options) and prints JSON lines; filter by request id.
+- **`error: bun is unable to write files: ReadOnlyFileSystem` does not mean a write.** On the Vercel Bun runtime it surfaced for a failed dynamic module import; fix the import, not the filesystem (D-024).
+
+## Waivers, dues and e-sign (added 2026-11-18)
+
+- `roster_entries.dues_status` (paid | unpaid | unknown) comes from the coordination sheet via `bun run db:import-roster <csv>`. Import: 29 updated, dues paid 14 / unpaid 15.
+- `waiver_signatures.source` (keysign | self_reported); unique triple (document, user, source). Migrations 0002 and 0003, both idempotent.
+- One active `Team waiver 2027` document seeded with `bun run db:seed-waiver`.
+- `WAIVERS_ASSUMED_SIGNED=true` (D-022). `KEYSIGN_SIGNING_URL` is set (`https://esign.team10989.org/s/teamhandout2627`, doc `29da6d87-…`); `KEYSIGN_WEBHOOK_SECRET` is still unset, so the `/waivers` page falls back to the signing link and `/api/webhooks/keysign` answers 401. Contract in `docs/KEYSIGN-INTEGRATION.md`.
+- Pages: `/waivers`, `/waivers/done`, `/core-values` (six FIRST values; see the later section).
+- Google Groups membership check: built, not connected (see the section below).
+
+## Google Groups membership check (built, not connected)
+
+`GET /api/groups/status` and the dashboard "Team Google Group" row exist and are tested with a fake client. They report `not_connected` until `GOOGLE_SERVICE_ACCOUNT_JSON` and `GOOGLE_WORKSPACE_ADMIN_EMAIL` are set and `google_objects` has `students` / `parents` group rows. See SETUP.md, "Connecting Google Groups". Not exercised against real Google. No admin-wide mismatch report yet.
+
+## Core values videos, Groups and KeySign (latest)
+
+- **Core values videos:** `/core-values` (student upload, straight to the Team Shared Drive) and `/admin/core-values` (review). Table `core_value_submissions` (migration 0004). Needs the service-account key and a registered folder: see docs/SETUP.md, "Core values videos". Until then the page shows the backup Google Form.
+- **Groups check:** works with or without domain-wide delegation; with `GOOGLE_WORKSPACE_ADMIN_EMAIL` unset it acts as the service account itself (docs/SETUP.md, option A).
+- **`google_objects`:** the two group rows (`group` / `students`, `group` / `parents`) are registered. Use `bun run db:set-google-object -- <kind> <key> <externalId> [email] [label]` for the rest.
+- **KeySign:** the document ID is stored on the seeded waiver row; `KEYSIGN_SIGNING_URL` (the public signing link) is still needed.
+
