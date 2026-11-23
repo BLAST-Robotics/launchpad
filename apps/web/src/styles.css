@@ -1,0 +1,98 @@
+@import "tailwindcss";
+
+/*
+ * Blast Robotics 10989 brand: black, white and the fire gradient (red -> orange -> yellow).
+ * Light theme on purpose: the LaunchPad mark has black outlines and needs a light surface.
+ * Contrast notes: red #E60004 on white is 4.9:1 (AA); text on red is white (4.9:1);
+ * #FCA817 is never used for text on white, only as a fill or on black.
+ */
+@theme {
+  --color-page: #ffffff;
+  --color-surface: #ffffff;
+  --color-primary: #0a0a0a;
+  --color-muted: #55555c;
+  --color-subtle: #e7e7ea;
+  --color-strong: #c9c9cf;
+  --color-ink: #0a0a0a;
+  --color-accent: #e60004;
+  --color-accent-strong: #b80003;
+  --color-accent-soft: #fff1f0;
+  --color-secondary: #fca817;
+  --color-secondary-soft: #fff6e3;
+  --color-success: #0f7a4f;
+  --color-success-soft: #e8f6ef;
+  --color-warning: #8a4f00;
+  --color-warning-soft: #fff3dc;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  /* Self-hosted (no third-party font requests). Outfit = body, Unbounded = display, the wide
+     heavy face closest to the BLAST wordmark. System fonts are only the fallback. */
+  --font-sans: "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Unbounded Variable", "Outfit Variable", ui-sans-serif, system-ui, sans-serif;
+  --shadow-card: 0 1px 2px rgb(10 10 10 / 0.05), 0 8px 24px -12px rgb(10 10 10 / 0.12);
+}
+
+:root {
+  color-scheme: light;
+  --fire: linear-gradient(90deg, #e60004 0%, #f03a0c 28%, #f26a0a 52%, #fca817 76%, #ffd21f 100%);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+/* No single word stranded on the last line of a paragraph. */
+p {
+  text-wrap: pretty;
+}
+
+::selection {
+  background-color: var(--color-accent);
+  color: #ffffff;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 2px;
+}
+
+/* Gradient text (headlines, wordmark accents). Falls back to solid red if unsupported. */
+.fire-text {
+  color: var(--color-accent);
+  background-image: var(--fire);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* 4px gradient strip: card tops, header underline, hero accents. */
+.fire-bar {
+  display: block;
+  height: 4px;
+  background-image: var(--fire);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-spin {
+    animation-duration: 3s;
+  }
+}

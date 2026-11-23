@@ -1,0 +1,36 @@
+{
+  "name": "launchpad",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.2.17",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "bun run scripts/dev.ts",
+    "dev:api": "bun --watch apps/api/src/index.ts",
+    "dev:web": "bun run --cwd apps/web dev",
+    "build:api": "bun build apps/api/src/app.ts --target=bun --outfile=api/_bundle/app.js",
+    "build": "bun run build:api && bun run --cwd apps/web build",
+    "typecheck": "tsc --noEmit -p packages/shared && tsc --noEmit -p packages/db && tsc --noEmit -p apps/api && tsc --noEmit -p apps/web",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "test": "bun test",
+    "db:generate": "bun run --cwd packages/db db:generate",
+    "db:migrate": "bun run --cwd packages/db db:migrate",
+    "db:seed": "bun run --cwd packages/db db:seed",
+    "db:import-roster": "bun run --cwd packages/db db:import-roster",
+    "db:make-admin": "bun run --cwd packages/db db:make-admin",
+    "db:set-google-object": "bun run --cwd packages/db db:set-google-object",
+    "db:studio": "bun run --cwd packages/db db:studio",
+    "db:check": "bun run --cwd packages/db db:check",
+    "db:seed-waiver": "bun run --cwd packages/db db:seed-waiver",
+    "db:check-google": "bun run scripts/check-google.ts"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.6.8",
+    "@types/bun": "^1.4.4",
+    "typescript": "^7.0.2"
+  }
+}
